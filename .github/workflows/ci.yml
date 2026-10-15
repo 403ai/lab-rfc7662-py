@@ -1,0 +1,31 @@
+# The 403-ai repo template's CI (R-141): written by the system, not by the VP's agent.
+# It runs the same install and test commands as the build's sandbox, only when the release
+# starts it (workflow_dispatch).
+name: ci
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: install
+        run: |
+          set -e
+          pip install "pytest==8.4.2"
+          if [ -f package-lock.json ]; then npm ci --ignore-scripts --no-audit --no-fund; fi
+          if [ -f pnpm-lock.yaml ]; then corepack pnpm install --frozen-lockfile --ignore-scripts; fi
+          if [ -f requirements.txt ]; then pip install --only-binary=:all: -r requirements.txt; fi
+      - name: test
+        run: |
+          if [ -x .403ai/test.sh ]; then ./.403ai/test.sh
+          elif [ -f package.json ]; then npm test
+          elif [ -f pyproject.toml ] || [ -f pytest.ini ] || [ -d tests ]; then python -m pytest -q
+          else echo "no test command found (.403ai/test.sh, package.json or pytest)"; exit 1; fi
